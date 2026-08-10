@@ -279,7 +279,8 @@ class OpenYuanRongSandboxBackendTest(unittest.TestCase):
         )
         self.assertEqual(session.get_info().id, "default-worker")
         session.close()
-        native.kill.assert_called_once_with()
+        native.close.assert_called_once_with()
+        native.kill.assert_not_called()
 
     def test_create_converts_network_policy_to_native_sdk_type(self):
         native = MagicMock()
@@ -315,7 +316,8 @@ class OpenYuanRongSandboxBackendTest(unittest.TestCase):
             session.close()
 
         sandbox_type.delete.assert_called_once_with("default-worker")
-        native.kill.assert_called_once_with()
+        native.close.assert_called_once_with()
+        native.kill.assert_not_called()
 
     def test_detached_delete_failure_still_allows_local_cleanup(self):
         native = MagicMock()
@@ -344,7 +346,27 @@ class OpenYuanRongSandboxBackendTest(unittest.TestCase):
 
         self.assertEqual(sandbox_type.delete.call_count, 2)
         sandbox_type.delete.assert_called_with("default-worker")
-        native.kill.assert_called_once_with()
+        native.close.assert_called_once_with()
+        native.kill.assert_not_called()
+
+    def test_terminate_then_close_does_not_issue_second_native_delete(self):
+        native = MagicMock()
+        native.id = "default-anonymous"
+        native.commands = MagicMock()
+        native.files = MagicMock()
+        native.kill.side_effect = RuntimeError("redundant DELETE failed")
+        with patch.object(
+            openyuanrong_sandbox.yr_sandbox,
+            "Sandbox",
+            return_value=native,
+        ) as sandbox_type:
+            session = self.backend.create(_spec())
+            session.terminate()
+            session.close()
+
+        sandbox_type.delete.assert_called_once_with("default-anonymous")
+        native.close.assert_called_once_with()
+        native.kill.assert_not_called()
 
     def test_non_detached_termination_uses_retryable_id_delete(self):
         native = MagicMock()
@@ -367,15 +389,35 @@ class OpenYuanRongSandboxBackendTest(unittest.TestCase):
         sandbox_type.delete.assert_called_with("default-anonymous")
         native.kill.assert_not_called()
 
-    def test_custom_reverse_tunnel_ports_are_rejected(self):
+    def test_custom_reverse_tunnel_ports_are_forwarded(self):
+        native = MagicMock()
+        native.id = "default-anonymous"
+        native.commands = MagicMock()
+        native.files = MagicMock()
         tunnel = HttpReverseTunnel(
             "https://service.example",
             reverse_port=9000,
             listen_port=9001,
         )
+        with patch.object(
+            openyuanrong_sandbox.yr_sandbox,
+            "Sandbox",
+            return_value=native,
+        ) as sandbox_type:
+            session = self.backend.create(_spec(reverse_tunnel=tunnel))
+            session.close()
+
+        self.assertEqual(sandbox_type.call_args.kwargs["proxy_port"], 9001)
+
+    def test_non_consecutive_reverse_tunnel_ports_are_rejected(self):
+        tunnel = HttpReverseTunnel(
+            "https://service.example",
+            reverse_port=9000,
+            listen_port=9002,
+        )
         with self.assertRaisesRegex(
             UnsupportedBackendFeatureError,
-            "8765 and 8766",
+            "listen_port - 1",
         ):
             self.backend.create(_spec(reverse_tunnel=tunnel))
 
