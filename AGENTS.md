@@ -175,14 +175,16 @@ runsc; a Kata request fails scheduling with a no-resource error when no
 eligible node exists. Do not treat a configured runtime as an advertised
 runtime.
 
-The bundled sandboxd configuration enables per-sandbox network ACLs.
-ACL-capable nodes require eBPF `SCHED_CLS`, TC `clsact`, writable bpffs,
-permission to load BPF programs and manage TC filters, and free TCP/UDP port
-53 on the sandbox bridge. Drain existing sandboxes before enabling ACLs or
-upgrading a node from a pre-ACL configuration; sandboxd refuses to initialize
-ACLs when old sandbox records remain. A sandbox without a network policy stays
-unrestricted. See `deploy/README.md` for deployment requirements and
-`sdk/python/README.md` for API limits.
+The bundled sandboxd configuration enables per-sandbox network ACLs. Packet
+ACL and NAT enforcement share the selected backend. The default iptables mode
+requires `ip_tables`, `br_netfilter`, conntrack, and bridge netfilter enabled;
+bpfnat requires eBPF `SCHED_CLS`, TC `clsact`, writable bpffs, and permission
+to load BPF programs and manage TC filters. Both modes require free TCP/UDP
+port 53 on the sandbox bridge. Drain existing sandboxes before enabling ACLs
+or upgrading a node from a pre-ACL configuration; sandboxd refuses to
+initialize ACLs when old sandbox records remain. A sandbox without a network
+policy stays unrestricted. See `deploy/README.md` for deployment requirements
+and `sdk/python/README.md` for API limits.
 
 Dragonfly distribution is optional and disabled by default. Enable it during
 profile generation with `make config INSTALL_DRAGONFLY=true`. This installs the
@@ -306,13 +308,13 @@ node-resource provider in standalone mode; Kubernetes deployments retain the
 Kubernetes provider. Standalone explicitly enables local DNAT because the
 frontend shares the node network namespace.
 
-Standalone uses iptables NAT by default. Set `AKERNEL_NAT_BACKEND=bpfnat` to
-use the experimental embedded TC eBPF backend. AKernel prepares the required
-network-namespace sysctls, but bpfnat does not change firewall policy; custom
-host-network deployments with `FORWARD=DROP` must allow traffic to and from
-the sandbox bridge. YuanRong receives `INSTANCE_IP` in Kubernetes or the
-default-route interface address in standalone mode; `AKERNEL_NODE_IP` is the
-explicit override for multi-homed environments.
+Standalone uses iptables NAT and ACL by default. Set
+`AKERNEL_NAT_BACKEND=bpfnat` to use the experimental embedded TC eBPF backend
+for both. AKernel prepares the required modules and network-namespace sysctls;
+custom bpfnat host-network deployments with `FORWARD=DROP` must allow traffic
+to and from the sandbox bridge. YuanRong receives `INSTANCE_IP` in Kubernetes
+or the default-route interface address in standalone mode;
+`AKERNEL_NODE_IP` is the explicit override for multi-homed environments.
 
 The standalone sandboxd filestore is a loop-mounted XFS image under the
 bind-mounted `deploy/standalone/data/` directory. Explicit `storage_mb` quotas

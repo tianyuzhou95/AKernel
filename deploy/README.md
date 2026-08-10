@@ -30,20 +30,30 @@ Kata Containers is enabled in the default AKernel runtime configuration and adds
 The iptables sandbox NAT backend remains the default. Terraform deployments
 can set `sandboxd_nat_backend = "bpfnat"` to use sandboxd's experimental
 embedded TC eBPF backend on nodes without iptables NAT or conntrack modules.
-The node must support TC eBPF and bpffs. bpfnat does not manage host firewall
-policy, so custom host-network deployments must allow forwarding to and from
-the sandbox bridge when their `FORWARD` policy is `DROP`.
+The node must support TC eBPF and bpffs. Both NAT and per-sandbox packet ACLs
+use the selected backend: iptables uses native netfilter and conntrack, while
+bpfnat uses sandboxd's TC eBPF programs and pinned state maps.
 
 ### Network ACLs
 
 The bundled standalone, Helm, and Terraform sandboxd configurations enable
 per-sandbox network ACLs. A sandbox created without a policy remains on the
-unrestricted fast path. ACL nodes require Linux eBPF `SCHED_CLS`, TC
-`clsact`, supported hash and array maps, a writable bpffs at
-`/sys/fs/bpf` (or permission to mount one), and permission to load BPF
-programs and manage TC filters. TCP and UDP port 53 on the sandbox bridge
-must be free, and sandboxd must have at least one usable upstream nameserver.
-AKernel's node container is privileged so it can meet these requirements.
+unrestricted fast path. With the default iptables backend, the host must load
+`ip_tables` and `br_netfilter`, provide conntrack, and expose
+`net.bridge.bridge-nf-call-iptables=1` in the node network namespace. The
+Terraform node bootstrap and standalone launcher prepare these requirements.
+Operators installing the Helm chart on an existing cluster must configure
+them on every AKernel node.
+
+With bpfnat, the host instead needs Linux eBPF `SCHED_CLS`, TC `clsact`, the
+required hash and LRU hash maps, a writable bpffs at `/sys/fs/bpf` (or
+permission to mount one), and permission to load BPF programs and manage TC
+filters. Custom host-network deployments with a `FORWARD` policy of `DROP`
+must also allow traffic to and from the sandbox bridge. For both backends,
+TCP and UDP port 53 on the sandbox bridge must be free and sandboxd must have
+at least one usable upstream nameserver. AKernel's node container is
+privileged so it can configure the selected backend inside its network
+namespace.
 
 Drain all sandboxes from a node before enabling ACLs or upgrading an existing
 deployment to a release that enables them. Sandboxd deliberately refuses to
@@ -51,9 +61,12 @@ start ACL support when its store contains pre-ACL sandboxes, preventing a
 silent fail-open migration. Start new sandboxes only after the upgraded
 sandboxd is healthy.
 
-ACL enforcement is independent of the selected `iptables` or `bpfnat` NAT
-backend. DNS policies manage each sandbox's `/etc/resolv.conf`; a caller
-mount that owns that path is rejected while ACL support is enabled.
+Packet ACL and NAT enforcement use the same selected `iptables` or `bpfnat`
+backend. The iptables backend relies on native conntrack for stateful policy
+and fragmented traffic; bpfnat maintains the corresponding eBPF connection
+and fragment state. DNS filtering remains a backend-independent userspace
+proxy that manages each sandbox's `/etc/resolv.conf`; a caller mount that
+owns that path is rejected while ACL support is enabled.
 
 `make config` is interactive by default. It writes:
 

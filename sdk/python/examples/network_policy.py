@@ -47,9 +47,9 @@ def main() -> None:
         assert external.exit_code != 0
         print("Block policy denied an external connection.")
 
-        blocked.files.write("/tmp/acl.txt", "RuntimeRPC fallback")
-        assert blocked.files.read("/tmp/acl.txt") == "RuntimeRPC fallback"
-        print("Commands and filesystem operations remain available.")
+        blocked.files.write("/tmp/acl.txt", "direct path remains available")
+        assert blocked.files.read("/tmp/acl.txt") == "direct path remains available"
+        print("Commands and direct filesystem operations remain available.")
 
     dns_policy = NetworkPolicy.deny_dns("github.com", "*.github.com")
     with Sandbox(network=dns_policy) as dns_filtered:

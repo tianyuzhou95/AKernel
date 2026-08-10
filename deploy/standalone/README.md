@@ -42,24 +42,26 @@ embedded TC eBPF backend:
 AKERNEL_NAT_BACKEND=bpfnat ./start.sh
 ```
 
-The node container remains privileged and must be able to load TC eBPF
-programs and mount or access bpffs. AKernel enables IPv4 forwarding before
+The node container remains privileged. AKernel enables IPv4 forwarding before
 sandboxd starts and disables global reverse-path filtering inside the node
-network namespace when bpfnat local DNAT is enabled. bpfnat replaces NAT; it
-does not override firewall policy. A custom host-network deployment whose
-`FORWARD` policy is `DROP` must allow traffic to and from `sandbox0` with
-bridge- and sandbox-CIDR-scoped rules.
+network namespace when bpfnat local DNAT is enabled. bpfnat requires TC eBPF
+and a writable bpffs. A custom host-network deployment whose `FORWARD` policy
+is `DROP` must allow traffic to and from `sandbox0` with bridge- and
+sandbox-CIDR-scoped rules.
 
 AKernel passes YuanRong the IPv4 address of the default-route interface so the
 later creation of `sandbox0` cannot change the advertised node address. Set
 `AKERNEL_NODE_IP` only when a multi-homed deployment requires an explicit
 override.
 
-The standalone configuration enables per-sandbox network ACLs. Its privileged
-node container can mount bpffs and manage the required eBPF TC filters. TCP
-and UDP port 53 on the sandbox bridge must remain free for sandboxd's managed
-DNS proxy. Before upgrading an existing standalone data directory to an
-ACL-enabled image, terminate its sandboxes and stop the old node cleanly;
+The standalone configuration enables per-sandbox network ACLs. In the default
+iptables mode, `start.sh` loads `br_netfilter` on the host and sandboxd enables
+bridge netfilter in the node network namespace; native conntrack supplies
+stateful ACL and fragment handling. In bpfnat mode, the privileged node
+container mounts bpffs and manages eBPF ACL, connection, and fragment state.
+TCP and UDP port 53 on the sandbox bridge must remain free for sandboxd's
+managed DNS proxy. Before upgrading an existing standalone data directory to
+an ACL-enabled image, terminate its sandboxes and stop the old node cleanly;
 sandboxd refuses to initialize ACLs while pre-ACL sandboxes remain in its
 store.
 

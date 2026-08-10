@@ -251,6 +251,18 @@ configure_network() {
     if [[ "${AKERNEL_NAT_BACKEND}" == "bpfnat" ]]; then
         log_warn "Using the experimental bpfnat network backend"
     else
+        if [[ ! -e /proc/sys/net/bridge/bridge-nf-call-iptables ]]; then
+            if [[ "${EUID}" -eq 0 ]]; then
+                modprobe br_netfilter
+            elif ! sudo -n modprobe br_netfilter; then
+                log_error "iptables ACL requires br_netfilter; load it as root"
+                exit 1
+            fi
+        fi
+        if [[ ! -e /proc/sys/net/bridge/bridge-nf-call-iptables ]]; then
+            log_error "br_netfilter did not expose bridge-nf-call-iptables"
+            exit 1
+        fi
         log_info "Using the iptables network backend"
     fi
 }

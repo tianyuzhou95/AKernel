@@ -144,7 +144,8 @@ with Sandbox() as unrestricted:
                                     "socket.getaddrinfo(\"github.com\", 443)'"))
 ```
 
-Block all sandbox traffic except the YuanRong control proxy:
+Block new sandbox connections except the YuanRong control proxy and published
+sandbox services:
 
 ```python
 with Sandbox(network=NetworkPolicy.block()) as sandbox:
@@ -152,10 +153,13 @@ with Sandbox(network=NetworkPolicy.block()) as sandbox:
     assert result.exit_code == 0
 ```
 
-Commands and lifecycle operations continue to work in block mode. The SDK
-also falls back from its direct filesystem data path to RuntimeRPC transfers,
-so file reads, writes, and copies keep working but bulk transfers can be
-slower.
+Commands, lifecycle operations, the direct filesystem data path, reverse
+tunnels, and explicit port forwarding continue to work in block mode. AKernel
+publishes the corresponding sandbox target ports as part of the sandbox
+creation request. The stateful policy accepts connections to those published
+ports and their reply traffic while continuing to deny unrelated new sandbox
+connections. Filesystem operations only use the bounded RuntimeRPC fallback
+when the direct transport itself fails.
 
 Deny conventional DNS lookups for exact names or leading `*.` suffix
 patterns:
@@ -179,7 +183,9 @@ Network policies are fixed when a sandbox is created. `block_network` and
 `dns_blacklist` cannot be combined in the current SDK. DNS blacklists cover
 ordinary UDP and TCP DNS and return a refused response for blocked queries;
 DNS-over-HTTPS and connections to a known IP are outside their scope. The
-packet ACL is currently IPv4 and stateless.
+packet ACL is currently IPv4 and stateful. TCP, UDP, related ICMP errors, and
+IPv4 fragments are supported. A fragment whose first fragment has not been
+observed is denied rather than guessed.
 
 See [`examples/network_policy.py`](./examples/network_policy.py) for all
 three modes. Deployment nodes must have network ACL support enabled; the

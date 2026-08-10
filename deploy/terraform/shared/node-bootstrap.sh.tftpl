@@ -6,15 +6,16 @@
 set -euo pipefail
 
 %{ if sandboxd_nat_backend == "iptables" ~}
-# ip_tables required for iptables NAT backend
-cat >/etc/systemd/system/akernel-modprobe-ip-tables.service <<'EOF'
+# ip_tables handles NAT and br_netfilter passes sandbox bridge packets through
+# the native iptables ACL. Keep both modules loaded across node reboots.
+cat >/etc/systemd/system/akernel-network-modules.service <<'EOF'
 [Unit]
-Description=Load ip_tables kernel module on boot
+Description=Load AKernel iptables network modules on boot
 After=network-pre.target
 
 [Service]
 Type=oneshot
-ExecStart=/bin/sh -c 'modprobe ip_tables'
+ExecStart=/bin/sh -c 'modprobe ip_tables && modprobe br_netfilter'
 RemainAfterExit=yes
 
 [Install]
@@ -22,8 +23,9 @@ WantedBy=multi-user.target
 EOF
 
 systemctl daemon-reload
-systemctl enable akernel-modprobe-ip-tables.service
-systemctl start akernel-modprobe-ip-tables.service
+systemctl enable akernel-network-modules.service
+systemctl start akernel-network-modules.service
+sysctl -w net.bridge.bridge-nf-call-iptables=1
 %{ endif ~}
 
 # Enable user namespaces (required by gVisor/runsc).
@@ -39,5 +41,10 @@ systemctl start akernel-modprobe-ip-tables.service
 # persist across reboots. Verified on cn-hongkong: reconfig sets 0, then loads
 # 99-user-customized.conf back to ${max_user_namespaces}, survives reboots.
 # Ref: https://help.aliyun.com/zh/ack/ack-managed-and-ack-dedicated/user-guide/custom-node-pool-os-parameters
-echo "user.max_user_namespaces=${max_user_namespaces}" > /etc/sysctl.d/99-user-customized.conf
+cat > /etc/sysctl.d/99-user-customized.conf <<'EOF'
+%{ if sandboxd_nat_backend == "iptables" ~}
+net.bridge.bridge-nf-call-iptables=1
+%{ endif ~}
+user.max_user_namespaces=${max_user_namespaces}
+EOF
 sysctl -w user.max_user_namespaces=${max_user_namespaces}
