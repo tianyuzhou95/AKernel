@@ -127,6 +127,8 @@ This will:
 - Start the privileged AKernel all-in-one container
 - Start an independent Traefik container for the HTTPS API and HTTP sandbox
   port-forwarding gateway
+- Configure Traefik to poll FunctionMaster's HTTP provider for per-sandbox
+  tunnel routes, including custom tunnel ports
 - Generate a deployment-specific IAM signing seed and a 24-hour SDK token
 - Generate a sandboxd config using `AKERNEL_NAT_BACKEND` (`iptables` by
   default)
