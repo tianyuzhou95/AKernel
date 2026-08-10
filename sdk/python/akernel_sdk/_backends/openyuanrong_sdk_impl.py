@@ -51,7 +51,6 @@ from ..types import (
 logger = logging.getLogger(__name__)
 
 _NAMESPACE = "akernel"
-_DEFAULT_LOCAL_ROOTFS = "/home/yuanrong/yr-runtime-rootfs.img"
 _initialized = False
 _init_lock = threading.Lock()
 
@@ -133,16 +132,7 @@ def _rootfs_json(
                 "storageInfo": rootfs.to_dict(),
             }
         )
-    if runtime != "runsc":
-        return json.dumps(
-            {
-                "runtime": runtime,
-                "type": "local",
-                "readonly": False,
-                "path": _DEFAULT_LOCAL_ROOTFS,
-            }
-        )
-    return None
+    return json.dumps({"runtime": runtime})
 
 
 def build_options(

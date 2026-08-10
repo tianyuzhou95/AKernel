@@ -147,53 +147,44 @@ class OpenYuanRongSandboxBackendTest(unittest.TestCase):
         self.assertEqual(os.environ["YR_GATEWAY_TLS"], "0")
         self.assertEqual(os.environ["YR_TOKEN"], "secret")
 
-    def test_kata_without_explicit_rootfs_uses_local_runtime_rootfs(self):
+    def test_kata_without_explicit_rootfs_uses_native_runtime_overlay(self):
         native = MagicMock()
         native.id = "default-kata"
         with patch.object(
-            openyuanrong_sandbox,
-            "_LocalRootfsSandbox",
+            openyuanrong_sandbox.yr_sandbox,
+            "Sandbox",
             return_value=native,
         ) as sandbox_type:
             self.backend.create(_spec(runtime="kata"))
 
         self.assertEqual(sandbox_type.call_args.kwargs["runtime"], "kata")
+        self.assertIsNone(sandbox_type.call_args.kwargs["rootfs"])
 
-    def test_local_rootfs_sandbox_injects_complete_rootfs_request(self):
-        client = MagicMock()
-        client.create_info.return_value = {"sandboxId": "default-kata"}
-        sandbox = object.__new__(openyuanrong_sandbox._LocalRootfsSandbox)
-        sandbox._client = client
+    def test_runsc_without_explicit_rootfs_uses_native_runtime_overlay(self):
+        native = MagicMock()
+        native.id = "default-runsc"
+        with patch.object(
+            openyuanrong_sandbox.yr_sandbox,
+            "Sandbox",
+            return_value=native,
+        ) as sandbox_type:
+            self.backend.create(_spec())
 
-        result = sandbox._create({"runtime": "kata", "namespace": "default"})
+        self.assertEqual(sandbox_type.call_args.kwargs["runtime"], "runsc")
+        self.assertIsNone(sandbox_type.call_args.kwargs["rootfs"])
 
-        self.assertEqual(result, {"sandboxId": "default-kata"})
-        request = client.create_info.call_args.args[0]
-        self.assertEqual(
-            request["rootfs"],
-            {
-                "runtime": "kata",
-                "type": "local",
-                "readonly": False,
-                "path": "/home/yuanrong/yr-runtime-rootfs.img",
-            },
-        )
-
-    def test_explicit_kata_image_keeps_native_sandbox_path(self):
+    def test_explicit_kata_image_is_forwarded_to_native_sdk(self):
         native = MagicMock()
         native.id = "default-kata-image"
-        with (
-            patch.object(
-                openyuanrong_sandbox.yr_sandbox,
-                "Sandbox",
-                return_value=native,
-            ) as sandbox_type,
-            patch.object(openyuanrong_sandbox, "_LocalRootfsSandbox") as local_type,
-        ):
+        with patch.object(
+            openyuanrong_sandbox.yr_sandbox,
+            "Sandbox",
+            return_value=native,
+        ) as sandbox_type:
             self.backend.create(_spec(runtime="kata", image="ubuntu:24.04"))
 
-        sandbox_type.assert_called_once()
-        local_type.assert_not_called()
+        self.assertEqual(sandbox_type.call_args.kwargs["runtime"], "kata")
+        self.assertEqual(sandbox_type.call_args.kwargs["image"], "ubuntu:24.04")
 
     def test_create_converts_inputs_and_preserves_akernel_outputs(self):
         native = MagicMock()

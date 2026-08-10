@@ -71,16 +71,18 @@ class OpenYuanRongSdkImplTest(unittest.TestCase):
             },
         )
 
-    def test_kata_uses_the_default_local_rootfs(self):
+    def test_kata_uses_runtime_only_rootfs_overlay(self):
         options = self.build_options(runtime="kata")
         self.assertEqual(
             json.loads(options.custom_extensions["rootfs"]),
-            {
-                "runtime": "kata",
-                "type": "local",
-                "readonly": False,
-                "path": "/home/yuanrong/yr-runtime-rootfs.img",
-            },
+            {"runtime": "kata"},
+        )
+
+    def test_runsc_uses_runtime_only_rootfs_overlay(self):
+        options = self.build_options(runtime="runsc")
+        self.assertEqual(
+            json.loads(options.custom_extensions["rootfs"]),
+            {"runtime": "runsc"},
         )
 
     def test_mount_and_tunnel_translation(self):

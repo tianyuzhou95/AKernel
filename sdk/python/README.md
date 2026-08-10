@@ -377,7 +377,9 @@ with Sandbox(rootfs=rootfs) as sandbox:
 
 `image` and `rootfs` are mutually exclusive. The SDK generates the backend
 wire representation; callers do not pass raw rootfs JSON or override the
-runtime inside an S3 object.
+runtime inside an S3 object. When neither source is supplied, AKernel sends
+only the selected isolation runtime and openYuanRong overlays it onto the
+rootfs configured by the deployed service.
 
 The same `S3Config` type can be used as a read-only mount source:
 
