@@ -246,6 +246,7 @@ locals {
 
   akernel_extra_node_pools = [for pool in var.extra_node_pools : merge(pool, {
     use_akernel_data_disk = true
+    pod_pids_limit        = var.node_pool_pids_limit
   })]
 
   # Dragonfly server pool (manager + scheduler) — fixed size, goes through extra node pools
@@ -257,6 +258,7 @@ locals {
     data_disk_enabled     = true
     data_disk_size        = var.dragonfly_server_node_pool.data_disk_size
     use_akernel_data_disk = false
+    pod_pids_limit        = null
     labels = {
       (var.dragonfly_server_node_pool.node_label_key) = var.dragonfly_server_node_pool.node_label_value
     }
@@ -421,6 +423,10 @@ resource "alicloud_cs_kubernetes_node_pool" "default_with_key" {
   cluster_id     = alicloud_cs_managed_kubernetes.ack[0].id
   node_pool_name = "${var.cluster_name}-default"
 
+  kubelet_configuration {
+    pod_pids_limit = tostring(var.node_pool_pids_limit)
+  }
+
   vswitch_ids        = local.node_pool_vswitch_ids
   security_group_ids = length(var.node_pool_security_group_ids) > 0 ? var.node_pool_security_group_ids : null
   instance_types     = var.node_pool_instance_types
@@ -465,6 +471,10 @@ resource "alicloud_cs_kubernetes_node_pool" "default_with_password" {
   count          = var.create_cluster && length(var.node_pool_key_name) == 0 ? 1 : 0
   cluster_id     = alicloud_cs_managed_kubernetes.ack[0].id
   node_pool_name = "${var.cluster_name}-default"
+
+  kubelet_configuration {
+    pod_pids_limit = tostring(var.node_pool_pids_limit)
+  }
 
   vswitch_ids        = local.node_pool_vswitch_ids
   security_group_ids = length(var.node_pool_security_group_ids) > 0 ? var.node_pool_security_group_ids : null
@@ -514,6 +524,13 @@ resource "alicloud_cs_kubernetes_node_pool" "extra" {
 
   cluster_id     = alicloud_cs_managed_kubernetes.ack[0].id
   node_pool_name = "${var.cluster_name}-${each.key}"
+
+  dynamic "kubelet_configuration" {
+    for_each = each.value.pod_pids_limit == null ? [] : [each.value.pod_pids_limit]
+    content {
+      pod_pids_limit = tostring(kubelet_configuration.value)
+    }
+  }
 
   vswitch_ids        = local.node_pool_vswitch_ids
   security_group_ids = length(var.node_pool_security_group_ids) > 0 ? var.node_pool_security_group_ids : null

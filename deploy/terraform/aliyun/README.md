@@ -10,6 +10,17 @@ It installs:
 - Optional Dragonfly to `dragonfly_namespace` (controlled by `install_dragonfly`)
 - Optional prereq `openkruise` to `prereq_namespace` (controlled by `install_prereqs`)
 
+## Pod PID budget
+
+`node_pool_pids_limit` defaults to `1620780` for the default pool and all
+user-supplied `extra_node_pools`; generated Dragonfly pools are excluded.
+Override it in `terraform.tfvars` with a positive integer or `-1` (node
+allocatable PID capacity). All sandboxes and runtime services share this
+budget; the per-sandbox limit stays 4096. Size it for node capacity and monitor
+memory pressure. Existing clusters require separate kubelet configuration.
+Review rollout impact before applying, then verify actual Pod and ancestor
+`pids.max` values: a kubelet config update alone may leave existing Pods stale.
+
 ## Prerequisites
 - Terraform >= 1.5
 - Alibaba Cloud account permissions for VPC/VSwitch/ACK/RAM resources

@@ -6,6 +6,13 @@ contract as the Aliyun module: one all-in-one AKernel image, a generated IAM
 seed, dual-entrypoint Traefik, optional public Grafana, and local state under
 `.akernel/<env>/`.
 
+## Pod PID budget
+
+[CCE documents `pod-pids-limit=-1` by default](https://support.huaweicloud.com/intl/en-us/usermanual-cce/cce_10_0652.html),
+so no ACK-specific override is applied. For customized pools, verify actual
+Pod and ancestor PID limits and adjust via CCE node pool configuration if
+needed. The per-sandbox limit remains 4096.
+
 ## Prerequisites
 
 - Terraform 1.5 or later

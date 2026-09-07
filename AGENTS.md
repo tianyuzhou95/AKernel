@@ -177,6 +177,9 @@ Use [`deploy/README.md`](./deploy/README.md) as the deployment entry point.
 AKernel supports standalone, existing Kubernetes clusters via Helm, and
 Terraform-based cloud provisioning.
 
+Aliyun's aggregate Pod PID budget is configurable independently of the
+per-sandbox limit; see `deploy/terraform/aliyun/README.md#pod-pid-budget`.
+
 For guided cloud deployment:
 
 ```bash

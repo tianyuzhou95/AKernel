@@ -199,6 +199,18 @@ variable "node_pool_zone_id" {
   default     = ""
 }
 
+variable "node_pool_pids_limit" {
+  type        = number
+  description = "Per-Pod PID budget for the default and user-supplied extra ACK node pools, shared by all sandboxes and runtime services."
+  default     = 1620780
+  nullable    = false
+
+  validation {
+    condition     = var.node_pool_pids_limit == -1 || (var.node_pool_pids_limit > 0 && floor(var.node_pool_pids_limit) == var.node_pool_pids_limit)
+    error_message = "node_pool_pids_limit must be a positive integer or -1 (node allocatable PID capacity)."
+  }
+}
+
 variable "node_pool_size" {
   type        = number
   description = "Desired node count in the default node pool."
