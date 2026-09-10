@@ -233,6 +233,9 @@ COPY ./src/distill-fs/ ./
 RUN cargo build --locked --release --bin distill_fs
 
 FROM ${AKERNEL_NODE_BASE_IMAGE}
+# Let PID 1 systemd avoid remounting shared host filesystems during shutdown.
+ENV container=oci
+
 ARG AKERNEL_ENABLE_KATA
 ARG AKERNEL_ENABLE_RUNC
 ARG AKERNEL_ENABLE_FIRECRACKER

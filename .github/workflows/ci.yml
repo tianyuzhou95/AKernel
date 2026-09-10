@@ -132,11 +132,25 @@ jobs:
               IMAGE_TAG="${GITHUB_SHA}" \
               RUNTIME_PROFILE=rrt
 
+      - name: Verify systemd container identity in the image
+        run: |
+          docker image inspect "akernel-ci/all-in-one:${GITHUB_SHA}" \
+            --format '{{json .Config.Env}}' | \
+            python -c 'import json, sys; assert "container=oci" in json.load(sys.stdin)'
+
       - name: Start standalone AKernel
         run: |
           IMAGE="akernel-ci/all-in-one:${GITHUB_SHA}" \
             AKERNEL_NAT_BACKEND=iptables \
             ./deploy/standalone/start.sh
+
+      - name: Verify PID 1 detects its container
+        run: |
+          docker exec akernel-node bash -euo pipefail -c '
+            tr "\0" "\n" < /proc/1/environ | grep -x "container=oci"
+            test "$(cat /run/systemd/container)" = oci
+            systemd-detect-virt --container
+          '
 
       - name: Run SDK end-to-end examples
         run: |

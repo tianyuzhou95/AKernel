@@ -71,6 +71,14 @@ The node must support TC eBPF and bpffs. bpfnat does not manage host firewall
 policy, so custom host-network deployments must allow forwarding to and from
 the sandbox bridge when their `FORWARD` policy is `DROP`.
 
+### systemd container identity
+
+The all-in-one image, Helm node template, and standalone launcher set
+`container=oci` so PID 1 systemd recognizes the container and does not remount
+shared host filesystems read-only during shutdown. Preserve this variable in
+custom launchers. Applying the fix requires replacing the node Pod or
+standalone container; it does not repair an already read-only filesystem.
+
 ### Network ACLs
 
 The bundled standalone, Helm, and Terraform sandboxd configurations enable
