@@ -73,52 +73,11 @@ the sandbox bridge when their `FORWARD` policy is `DROP`.
 
 ### systemd container identity
 
-The node and standalone roles run systemd as PID 1. The final all-in-one
-image declares lowercase `container=oci`, and the Helm node template and
-standalone launcher also pass it explicitly so older images receive the
-same protection. Both Terraform providers use this Helm node template.
-Keep this variable in custom launchers before starting systemd.
-
-Without container detection, privileged systemd shutdown can remount a
-host-backed filesystem read-only at the superblock level, affecting the host
-and replacement containers. `HostToContainer` mount propagation and masking
-`systemd-remount-fs.service` do not prevent this shutdown path. See the
-[systemd container interface](https://systemd.io/CONTAINER_INTERFACE/) and
-[v255 shutdown implementation](https://github.com/systemd/systemd/blob/v255/src/shutdown/umount.c#L93-L121).
-
-Drain workloads before upgrading and replace the node Pod or standalone
-container; exporting the variable in an exec shell does not change PID 1.
-Inside the replacement container, verify:
-
-```bash
-tr '\0' '\n' < /proc/1/environ | grep -x 'container=oci'
-cat /run/systemd/container
-systemd-detect-virt --container
-```
-
-The marker should contain `oci`; detection must succeed and may report
-`container-other`. Verify the built image as well:
-
-```bash
-docker image inspect --format '{{json .Config.Env}}' <image>
-```
-
-Its environment must include `container=oci`. On the target container runtime,
-verify normal shutdown, rolling replacement, and recreation with the actual
-hostPath, filestore, and checkpoint mounts. Check both the mount flags and
-the filesystem flags after ` - ` in `/proc/self/mountinfo`, confirm writes
-still succeed, check sandboxd/YuanRong services and worker registration, and
-run a basic sandbox create/execute/delete cycle.
-
-This fix does not restore an already read-only filesystem. First inspect
-kernel logs and rule out disk I/O errors or filesystem damage. Replace the
-old container with one that correctly identifies itself, since the old
-container can still remount the filesystem during its final shutdown. Only
-then, after confirming the affected mount and obtaining operator approval,
-remount that specific filesystem read-write. Verify separate filestore and
-checkpoint mounts too, and repeat normal replacement to confirm no second
-repair is needed. Do not add unconditional startup remounts or clear sandbox
-state as a workaround.
+The all-in-one image, Helm node template, and standalone launcher set
+`container=oci` so PID 1 systemd recognizes the container and does not remount
+shared host filesystems read-only during shutdown. Preserve this variable in
+custom launchers. Applying the fix requires replacing the node Pod or
+standalone container; it does not repair an already read-only filesystem.
 
 ### Network ACLs
 

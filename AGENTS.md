@@ -188,7 +188,7 @@ for PID 1 systemd. Preserve this in the final image, Helm node environment,
 and standalone launcher: without container detection, privileged systemd
 shutdown can remount shared host filesystems read-only. See
 [`deploy/README.md#systemd-container-identity`](./deploy/README.md#systemd-container-identity)
-for upgrade verification and recovery of already affected mounts.
+for deployment implications.
 
 Aliyun's aggregate Pod PID budget is configurable independently of the
 per-sandbox limit; see `deploy/terraform/aliyun/README.md#pod-pid-budget`.
