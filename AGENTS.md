@@ -183,6 +183,13 @@ Use [`deploy/README.md`](./deploy/README.md) as the deployment entry point.
 AKernel supports standalone, existing Kubernetes clusters via Helm, and
 Terraform-based cloud provisioning.
 
+The all-in-one image and node launchers declare lowercase `container=oci`
+for PID 1 systemd. Preserve this in the final image, Helm node environment,
+and standalone launcher: without container detection, privileged systemd
+shutdown can remount shared host filesystems read-only. See
+[`deploy/README.md#systemd-container-identity`](./deploy/README.md#systemd-container-identity)
+for upgrade verification and recovery of already affected mounts.
+
 Aliyun's aggregate Pod PID budget is configurable independently of the
 per-sandbox limit; see `deploy/terraform/aliyun/README.md#pod-pid-budget`.
 

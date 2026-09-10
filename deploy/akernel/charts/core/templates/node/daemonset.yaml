@@ -76,6 +76,9 @@ spec:
         resources:
           {{- toYaml .Values.node.resources | nindent 10 }}
         env:
+        # Required for systemd shutdown safety, including with older images.
+        - name: container
+          value: "oci"
         - name: AKERNEL_ROLE
           value: "node"
         - name: RUNSC_AKERNEL
